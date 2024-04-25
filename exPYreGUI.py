@@ -1,4 +1,4 @@
-# compile using pyinstaller --windowed --onefile --icon=assets/petri-dish96.ico --hidden-import babel.numbers ExpiryGUI.py
+# compile using pyinstaller --windowed --onefile --icon=assets/petri-dish96.ico --hidden-import babel.numbers exPYreGUI.py
 import configparser
 import customtkinter as ctk
 import os
