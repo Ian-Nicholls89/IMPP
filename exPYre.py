@@ -1,4 +1,4 @@
-# compile using pyinstaller --windowed --onefile --icon=petri-dish96.ico ExpiryDaemon.py
+# compile using pyinstaller --windowed --onefile --icon=assets/petri-dish96.ico exPYre.py
 import sqlite3
 from datetime import datetime, timedelta
 import os
