@@ -1,4 +1,4 @@
-# compile using pyinstaller --windowed --onefile --icon=assets/petri-dish96.ico exPYre.py
+# compile using pyinstaller --windowed --onefile --icon=assets/petri-dish96.ico ExpiryDaemon.py
 import sqlite3
 from datetime import datetime, timedelta
 import os
@@ -11,13 +11,23 @@ from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction, QWidg
 from PyQt5.QtGui import QIcon
 import subprocess
 
-SETTINGS_FILE = "database_settings.ini"
-INTERVAL_SETTINGS = "interval_settings.ini"
-TRAY_ICON = "assets/petri-dish96.ico"
+main_dir = os.path.dirname(os.path.abspath(__file__)) # Establish filepath from where script is run
+gui = os.path.join(main_dir, "exPYreGUI.py") # Create filepath to GUI (change to .exe if compiled, also change line 415)
+asset_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets") # Establish filepath to assets folder
+# Icons
+main_icon = os.path.join(asset_path, "petri-dish96.ico")
+alert_icon = os.path.join(asset_path, "petri-dish96alert.ico")
+expired_icon = os.path.join(asset_path, "petri-dish96expired.ico")
+warn_icon = os.path.join(asset_path, "petri-dish96warn.ico")
+
+SETTINGS_FILE = os.path.join(main_dir, "database_settings.ini")
+INTERVAL_SETTINGS = os.path.join(main_dir, "interval_settings.ini")
+TRAY_ICON = main_icon
 databases_window = None  # Initializes databases_window globally
 settings_window = None  # Initializes settings_window globally
 notifications_paused = False # Global variable to track if notifications are paused
-timer = None # initialise timer globally 
+timer = None # initialise timer globally
+
 
 class DatabaseScanner:
     def __init__(self, db_path):
@@ -199,7 +209,7 @@ def show_toast(title, message):
     notification = Notify()
     notification.title = title
     notification.message = message
-    notification.icon = "assets/petri-dish96alert.ico"
+    notification.icon = alert_icon
     notification.send()
 
 def get_database_path():
@@ -372,8 +382,8 @@ def trigger_database_scan():
                 show_toast(title, message)
 
                 # update tray icon and tooltip
-                if tray_icon.icon().name() != "assets/petri-dish96expired.ico":
-                    tray_icon.setIcon(QIcon("assets/petri-dish96warn.ico"))
+                if tray_icon.icon().name() != expired_icon:
+                    tray_icon.setIcon(QIcon(warn_icon))
                     tray_icon.setToolTip("exPYre - an item is nearing expiry")
 
         # Get past events and show toast notifications if notifications are not paused
@@ -385,7 +395,7 @@ def trigger_database_scan():
                 show_toast(title, message)
 
                 # update tray icon and tooltip
-                tray_icon.setIcon(QIcon("assets/petri-dish96expired.ico"))
+                tray_icon.setIcon(QIcon(expired_icon))
                 tray_icon.setToolTip("exPYre - an item has expired")
 
         # Close the database connection
@@ -402,7 +412,11 @@ def start_timer(interval):
 
 def tray_icon_double_clicked(reason):
     if reason == QSystemTrayIcon.DoubleClick:
-        subprocess.Popen(['database_gui.exe'])
+        try: # open GUI
+            subprocess.Popen(["python", f"{gui}"])
+        except FileNotFoundError as e:
+            # If the file is not found, show a warning message box
+            QMessageBox.warning(None, "File Not Found", f"{e}\n Please Reinstall", QMessageBox.Ok)
 
 def exit_program():
     # Cancel the timer if it's running
