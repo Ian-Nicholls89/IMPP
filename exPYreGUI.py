@@ -7,8 +7,11 @@ from tkcalendar import Calendar
 from tkinter import ttk, messagebox
 import sqlite3
 
+main_dir = os.path.dirname(os.path.abspath(__file__))
+icon = os.path.join(main_dir, "assets", "petri-dish96.ico")
+
 # Define global variables
-SETTINGS_FILE = "database_settings.ini"
+SETTINGS_FILE = os.path.join(main_dir, "database_settings.ini")
 
 # Function to load the database files from the settings file created in main program
 def load_settings():
@@ -83,7 +86,7 @@ def create_gui():
     global calendar
     # Create the main window
     app = ctk.CTk()
-    app.wm_iconbitmap("assets/petri-dish96.ico")
+    app.wm_iconbitmap(icon)
     app.geometry("600x400")
     app.title("exPYre - Database Editor")
 
