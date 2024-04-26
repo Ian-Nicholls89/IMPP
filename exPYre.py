@@ -12,7 +12,7 @@ from PyQt5.QtGui import QIcon
 import subprocess
 
 main_dir = os.path.dirname(os.path.abspath(__file__)) # Establish filepath from where script is run
-gui = os.path.join(main_dir, "exPYreGUI.py") # Create filepath to GUI (change to .exe if compiled, also change line 415)
+gui = os.path.join(main_dir, "exPYreGUI.exe") # Create filepath to GUI
 asset_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets") # Establish filepath to assets folder
 # Icons
 main_icon = os.path.join(asset_path, "petri-dish96.ico")
@@ -413,7 +413,7 @@ def start_timer(interval):
 def tray_icon_double_clicked(reason):
     if reason == QSystemTrayIcon.DoubleClick:
         try: # open GUI
-            subprocess.Popen(["python", f"{gui}"])
+            subprocess.Popen([f"{gui}"])
         except FileNotFoundError as e:
             # If the file is not found, show a warning message box
             QMessageBox.warning(None, "File Not Found", f"{e}\n Please Reinstall", QMessageBox.Ok)
