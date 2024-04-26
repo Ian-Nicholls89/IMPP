@@ -13,7 +13,7 @@ import subprocess
 
 main_dir = os.path.dirname(os.path.abspath(__file__)) # Establish filepath from where script is run
 gui = os.path.join(main_dir, "exPYreGUI.exe") # Create filepath to GUI
-asset_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets") # Establish filepath to assets folder
+asset_path = os.path.join(main_dir, "assets") # Establish filepath to assets folder
 # Icons
 main_icon = os.path.join(asset_path, "petri-dish96.ico")
 alert_icon = os.path.join(asset_path, "petri-dish96alert.ico")
