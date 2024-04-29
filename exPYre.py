@@ -11,23 +11,35 @@ from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction, QWidg
 from PyQt5.QtGui import QIcon
 import subprocess
 
+# File directories
 main_dir = os.path.dirname(os.path.abspath(__file__)) # Establish filepath from where script is run
-gui = os.path.join(main_dir, "exPYreGUI.exe") # Create filepath to GUI
-asset_path = os.path.join(main_dir, "assets") # Establish filepath to assets folder
-# Icons
-main_icon = os.path.join(asset_path, "petri-dish96.ico")
-alert_icon = os.path.join(asset_path, "petri-dish96alert.ico")
-expired_icon = os.path.join(asset_path, "petri-dish96expired.ico")
-warn_icon = os.path.join(asset_path, "petri-dish96warn.ico")
+asset_dir = os.path.join(main_dir, "assets") # Establish filepath to assets folder
 
-SETTINGS_FILE = os.path.join(main_dir, "database_settings.ini")
-INTERVAL_SETTINGS = os.path.join(main_dir, "interval_settings.ini")
+# Directory converter for compiler
+def real_path(directory, file):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, os.path.join(directory, file))
+    return os.path.join(directory, file)
+
+# Create filepath to GUI
+gui = real_path(main_dir, "exPYreGUI.exe") 
+
+# Icons
+main_icon = real_path(asset_dir, "petri-dish96.ico")
+alert_icon = real_path(asset_dir, "petri-dish96alert.ico")
+expired_icon = real_path(asset_dir, "petri-dish96expired.ico")
+warn_icon = real_path(asset_dir, "petri-dish96warn.ico")
+
+# Configuration files
+SETTINGS_FILE = real_path(main_dir, "database_settings.ini")
+INTERVAL_SETTINGS = real_path(main_dir, "interval_settings.ini")
 TRAY_ICON = main_icon
+
+# Global variables
 databases_window = None  # Initializes databases_window globally
 settings_window = None  # Initializes settings_window globally
 notifications_paused = False # Global variable to track if notifications are paused
 timer = None # initialise timer globally
-
 
 class DatabaseScanner:
     def __init__(self, db_path):
