@@ -3,6 +3,6 @@ I work across multiple labs each of which has short shelf life consumables and I
 I wanted a 'set and forget' software where I could add consumables and be reminded when they are expired/nearing expiry. Thats where exPYre comes in.
 
 
-exPYre is a small program written in python in which the user creates one or many SQLite3 databases, gives them a name such as a room number or task which groups products together and starts adding products and their expiry dates to.
+exPYre is a program written in python in which the user creates one or many SQLite3 databases, gives them a name such as a room number or task which groups products together and starts adding products and their expiry dates to.
 The system tray daemon will then scan those databases in the background periodically and give a windows toast telling notifying which item in which database is approaching expiry, or has already expired.
 
