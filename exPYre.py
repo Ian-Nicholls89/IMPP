@@ -1,4 +1,4 @@
-# compile using pyinstaller --windowed --onefile --icon=assets/petri-dish96.ico --add-data "assets/*.ico;assets/" --hidden-import babel.numbers exPYre.py
+# compile using pyinstaller --windowed --onefile --icon=assets/petri-dish96.ico --add-data "assets/*.ico;assets/" --hidden-import babel.numbers --hidden-import winrt.windows.foundation.collections exPYre.py
 import sqlite3
 from datetime import datetime, timedelta
 import os
@@ -9,10 +9,11 @@ import threading
 from windows_toasts import Toast, ToastDisplayImage, WindowsToaster
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction, QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QInputDialog, QHBoxLayout, QMessageBox, QComboBox
 from PyQt5.QtGui import QIcon
-import subprocess
 import customtkinter as ctk
 from tkcalendar import Calendar
 import webbrowser
+from win32com.client import Dispatch
+import winshell
 
 # Directory converter for compiler
 def resource_path(relative_path):
@@ -32,8 +33,8 @@ expired_icon = resource_path("assets\\petri-dish96expired.ico")
 warn_icon = resource_path("assets\\petri-dish96warn.ico")
 
 # Configuration files
-SETTINGS_FILE = resource_path("database_settings.ini")
-INTERVAL_SETTINGS = resource_path("interval_settings.ini")
+SETTINGS_FILE = "database_settings.ini"
+INTERVAL_SETTINGS = "interval_settings.ini"
 TRAY_ICON = main_icon
 
 # Global variables
@@ -117,6 +118,14 @@ class SettingsWindow(ctk.CTk):
                                      command=self.save_settings)
         interval_set.set(self.interval_translator(int(self.load_current_interval())))
         interval_set.pack()
+
+        startup_label = ctk.CTkLabel(master=tab_view.tab("Notification Settings"), text="Launch exPYre at system startup?") 
+        startup_label.pack(pady=5)
+        startup_set = ctk.CTkComboBox(master=tab_view.tab("Notification Settings"), values=["Yes", "No"],
+                                     command=self.startup)
+        ##choice = self.startup_check()
+        startup_set.set(self.startup_check())
+        startup_set.pack()
 
         # Create layout for About tab
         text_box = ctk.CTkLabel(master=tab_view.tab("About exPYre"), text="exPYre was written by Ian Nicholls in Python 3.11 \nand is distributed under MIT licence.")
@@ -230,6 +239,29 @@ class SettingsWindow(ctk.CTk):
                 except ValueError:
                     messagebox.showerror("Error", "Database not found.")
     
+    def startup(self, choice):
+        startup_shortcut = os.path.join(winshell.startup(), "exPYre.lnk")
+        
+        if choice == "Yes":
+            shell = Dispatch('WScript.Shell')
+            startup = shell.CreateShortcut(startup_shortcut)
+            startup.TargetPath = os.path.join(os.path.abspath("."), "exPYre.exe")
+            startup.WorkingDirectory = os.path.abspath(".")
+            startup.save()
+        elif choice == "No":
+            if os.path.exists(startup_shortcut):
+                os.remove(startup_shortcut)
+            else:
+                return
+    
+    def startup_check(self):
+        if os.path.exists(os.path.join(winshell.startup(), "exPYre.lnk")):
+            choice = "Yes"
+            return choice
+        else:
+            choice = "No"
+            return choice
+
     def closeEvent(self):
         global settings_window
         settings_window = False
@@ -474,17 +506,17 @@ def save_settings(database_settings):
     existing_settings.update(database_settings)  # Update with new settings
     config = configparser.ConfigParser()
     config['Settings'] = existing_settings
-    with open(SETTINGS_FILE, 'w') as configfile:
+    with open(SETTINGS_FILE, 'w+') as configfile:
         config.write(configfile)
 
 def save_interval(scan_interval):
     config = configparser.ConfigParser()
     config['Settings'] = scan_interval
-    with open(INTERVAL_SETTINGS, 'w') as configfile:
+    with open(INTERVAL_SETTINGS, 'w+') as configfile:
         config.write(configfile)
 
 def load_settings():
-    if not os.path.exists(SETTINGS_FILE):
+    if not os.path.exists(SETTINGS_FILE) or os.path.getsize(SETTINGS_FILE) == 0:
         # If settings file doesn't exist, prompt the user to select a database file
         database_path = get_database_path()
         if database_path:
@@ -496,7 +528,7 @@ def load_settings():
             # Create a new settings file with the selected database path and custom name
             config = configparser.ConfigParser()
             config['Settings'] = {custom_name: database_path}
-            with open(SETTINGS_FILE, 'w') as configfile:
+            with open(SETTINGS_FILE, 'w+') as configfile:
                 config.write(configfile)
             additional_databases_prompt()
             return dict(config['Settings'])
