@@ -2,7 +2,7 @@
 import sqlite3
 from datetime import datetime, timedelta
 import os
-from tkinter import Tk, ttk, filedialog, messagebox, Listbox, PhotoImage
+from tkinter import Tk, ttk, filedialog, messagebox, PhotoImage, simpledialog
 import configparser
 import sys
 import threading
@@ -29,11 +29,12 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # Icons
-main_icon = resource_path("assets\\IMPP\\trayicon.ico")
-alert_icon = resource_path("assets\\IMPP\\toastwarn.gif")
-expired_icon = resource_path("assets\\IMPP\\trayiconexpire.ico")
-warn_icon = resource_path("assets\\IMPP\\trayiconwarn.ico")
-app_logo = resource_path("assets\\IMPP\\impp-logo.png")
+main_icon = resource_path("assets\\IMPP\\IMPPcuteimp.png")
+toast_alert_icon = resource_path("assets\\IMPP\\IMPPcuteimpwarn.png")
+toast_expired_icon = resource_path("assets\\IMPP\\IMPPcuteimpexp.png")
+expired_icon = resource_path("assets\\IMPP\\IMPPcuteimpexptray.png")
+warn_icon = resource_path("assets\\IMPP\\IMPPcuteimpwarntray.png")
+app_logo = resource_path("assets\\IMPP\\IMPPcute.png")
 
 # Configuration files
 SETTINGS = "settings.ini"
@@ -77,7 +78,7 @@ class SettingsWindow(ctk.CTk):
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("dark-blue")
-
+        
         # Create the main window
         self.wm_iconbitmap(main_icon)
         self.geometry("400x400")
@@ -104,16 +105,23 @@ class SettingsWindow(ctk.CTk):
         # Database list and delete button
         databasetitlelabel = ctk.CTkLabel(master=tab_view.tab("Database Settings"), text="Loaded Databases:")
         databasetitlelabel.pack()
-        databases = Listbox(master=tab_view.tab("Database Settings"), selectmode= "single", height=5)
-        databases.pack(fill="x", pady=5)
+
+        databases = ttk.Treeview(master=tab_view.tab("Database Settings"), columns=("Name", "Location"), show="headings")
+        # Set the display names for the columns
+        databases.heading("Name", text="Name")
+        databases.heading("Location", text="Location")
+        databases.pack(fill="x", pady=5) #(expand=True, fill="both")
+
         scrollbar = ctk.CTkScrollbar(databases)
         scrollbar.configure(command=databases.yview)
         scrollbar.pack(side="right", fill="y")
-        databases.config(yscrollcommand=scrollbar.set)
+        databases.configure(yscrollcommand=scrollbar.set)
+
         self.refresh_databases()
-        removebutton = ctk.CTkButton(master=tab_view.tab("Database Settings"), text="Remove Selected Database", command=lambda: self.remove_database(databases.get(databases.curselection()[0])))
-        removebutton.pack(pady=5, anchor="s")
         
+        removebutton = ctk.CTkButton(master=tab_view.tab("Database Settings"), text="Remove Selected Database", command=lambda: self.remove_database(databases.item(databases.focus())["values"]))
+        removebutton.pack(pady=5, anchor="s")  
+
         # Create layout for Notification Settings Tab
         interval_label = ctk.CTkLabel(master=tab_view.tab("Notification Settings"), text="Notify me every...") 
         interval_label.pack(pady=5)
@@ -139,7 +147,11 @@ class SettingsWindow(ctk.CTk):
         startup_set.pack()
 
         # Create layout for About tab
-        text_box = ctk.CTkLabel(master=tab_view.tab("About IMPP"), text="IMPP was written by Ian Nicholls in Python 3.11 \nand is distributed under MIT licence.")
+        imp = Image.open(main_icon)
+        pict = ctk.CTkImage(light_image=imp, dark_image=imp, size=(100, 100))
+        image = ctk.CTkLabel(master=tab_view.tab("About IMPP"), text="", image=pict)
+        image.pack()
+        text_box = ctk.CTkLabel(master=tab_view.tab("About IMPP"), text="IMPP was written by Ian Nicholls in Python 3.11 \nand is distributed under MIT licence.\nImage assets were developed using AI and edited by Ian Nicholls. ")
         text_box.pack(pady=20)
         github_button = ctk.CTkButton(master=tab_view.tab("About IMPP"), text="GitHub",command= lambda: webbrowser.open("https://github.com/Ian-Nicholls89/exPYre"))
         github_button.pack()
@@ -189,14 +201,24 @@ class SettingsWindow(ctk.CTk):
         write_settings("Notifications", "scan_interval", str(choice))
         
     def refresh_databases(self):
+        start = databases.get_children().__len__()
         # Clear existing items in the listbox
-        for i in range(databases.size()):
-            databases.delete(0)
+        for child in databases.get_children():
+            databases.delete(child)
 
-        # Add databases back to the listbox
-        database_list = load_settings("Databases", ".") # placeholder used for key value as not needed to call databases from settings
-        for entry in database_list:
-            databases.insert("end", entry)
+        # Add databases back to the listbox and get longest name length
+        database_list = load_settings("Databases", None) # placeholder used for key value as not needed to call databases from settings
+        column_width = 0
+        for name, location in database_list.items():
+            databases.insert("", "end", values=(name, location))
+            column_width = max(column_width, len(name))
+        end = databases.get_children().__len__()
+        databases.column("Name", width=column_width) # adjust the column width 
+
+        if not start == 0 and end > start: # if a database has been added then scan new database (assuming here that its the last database in the list)
+            for db_name, db_path in reversed(database_list.items()):
+                trigger_database_scan({db_name:db_path})
+                break            
 
     def create_database(self):
         # Create new db
@@ -204,23 +226,23 @@ class SettingsWindow(ctk.CTk):
 
         if file_path:
             # Prompt the user to enter a custom name for the database
-            custom_name, _ = QInputDialog.getText(None, "Custom Name", "Enter a custom name for the database (optional):\n\n e.g 'PCR Lab Reagents'")
+            custom_name = simpledialog.askstring("Custom Name", "Enter a custom name for the database (optional):\n\n e.g 'PCR Lab Reagents'")
             if not custom_name:
                 custom_name = os.path.basename(file_path)  # Use the database file name as the custom name
-                
+                    
             # Update the settings file with the new database path and custom name
             write_settings("Databases", custom_name, file_path)
             
             # Refresh the UI to display the new database
             self.refresh_databases()
-        
+    
     def load_database(self):
         # User wants to load an existing database
         file_path = filedialog.askopenfilename(title="Select Database File", filetypes=[("Database Files", "*.db")])
         
         if file_path:
             # Prompt the user to enter a custom name for the database
-            custom_name, _ = QInputDialog.getText(None, "Custom Name", "Enter a custom name for the database (optional):\n\n e.g 'PCR Lab Reagents'")
+            custom_name = simpledialog.askstring("Custom Name", "Enter a custom name for the database (optional):\n\n e.g 'PCR Lab Reagents'")
             if not custom_name:
                 custom_name = os.path.basename(file_path)  # Use the database file name as the custom name
                 
@@ -231,13 +253,13 @@ class SettingsWindow(ctk.CTk):
             self.refresh_databases()
 
     def remove_database(self, name):
-            reply = messagebox.askyesno("Confirmation", f"Are you sure you want to delete \"{name}\" database?")
+            reply = messagebox.askyesno("Confirmation", f"Are you sure you want to delete \"{name[0]}\" database?")
             if reply:
                 try:
                     # Remove the database from settings
                     config = configparser.ConfigParser()
                     config.read(SETTINGS)
-                    config.remove_option("Databases", name)
+                    config.remove_option("Databases", name[0])
                     with open(SETTINGS, 'w+') as configfile:
                         config.write(configfile)
                     # Refresh the UI to update the displayed databases
@@ -281,7 +303,7 @@ class DatabaseEditor(ctk.CTk):
         global calendar
         global database_settings
         # Load all databases from settings file
-        database_settings = load_settings("Databases", ".") # placeholder used for key value as not needed to call databases from settings
+        database_settings = load_settings("Databases", None) # placeholder used for key value as not needed to call databases from settings
 
         # Load first database into editing mode
         for name, info in database_settings.items():
@@ -310,11 +332,10 @@ class DatabaseEditor(ctk.CTk):
         tab_view.add("Add Products")
 
         # Create a treeview for displaying products in tab1
-        treeview = ttk.Treeview(master=tab_view.tab("Show All Items"), columns=("Product", "Expiry Date"))
-        treeview.pack(expand=True, fill="both")
-        treeview.column("#0", width=0)
+        treeview = ttk.Treeview(master=tab_view.tab("Show All Items"), columns=("Product", "Expiry Date"), show="headings")
         treeview.heading("Product", text="Product")
         treeview.heading("Expiry Date", text="Expiry Date")
+        treeview.pack(expand=True, fill="both")
         
 
         # Populate the treeview with sample data
@@ -471,9 +492,9 @@ def show_toast(title, message):
     newToast = Toast()
     newToast.text_fields = [f"{title}", f"{message}"]
     if "has now expired" in message:
-        newToast.AddImage(ToastDisplayImage.fromPath(alert_icon))
+        newToast.AddImage(ToastDisplayImage.fromPath(toast_expired_icon))
     elif "is expiring in" in message:
-        newToast.AddImage(ToastDisplayImage.fromPath(warn_icon))    
+        newToast.AddImage(ToastDisplayImage.fromPath(toast_alert_icon))    
     newToast.on_activated = lambda _: show_editor_window()
     toaster.show_toast(newToast)
 
@@ -520,13 +541,7 @@ def load_settings(section, key):
     config.read(SETTINGS)
     # if the section is of databases then all databases must be read
     if section == "Databases":
-        if config.has_section(section): # if the section exists then proceed with the loading
-            try:
-                return dict(config[section])
-            except KeyError: # bail out of the program if there is a config read error
-                QMessageBox.warning(None, "Warning", "Settings Read Error. Exiting.", QMessageBox.Ok)
-                exit_program()
-        elif not config.has_section(section): # if there is no databases in the settings file then none have previously been loaded and at least one must be loaded
+        if not config.has_section(section): # if there is no databases in the settings file then none have previously been loaded and at least one must be loaded
             database_path = get_database_path()
             if database_path:
                 #  Prompt the user to enter a custom name for the database
@@ -536,6 +551,21 @@ def load_settings(section, key):
                 write_settings(section, custom_name, database_path) # write that database into the settings - this will catch and ask if extra databases are to be added
                 config.read(SETTINGS) # reread the settings before loading again
                 return dict(config[section]) # return all the databases which have been added
+        elif config.has_section(section): # if the section exists then proceed with the loading
+            if key == None: # if a placeholder key is passed then load all databases
+                try:
+                    return dict(config[section])
+                except KeyError: # bail out of the program if there is a config read error
+                    QMessageBox.warning(None, "Warning", "Settings Read Error. Exiting.", QMessageBox.Ok)
+                    exit_program()
+            else: # return only requested database info
+                try:
+                    setting = config.get(section, key)
+                    return {key:setting,} # if the setting exists then it is returned as a dict
+                except KeyError: # bail out of the program if there is a config read error
+                    QMessageBox.warning(None, "Warning", "Settings Read Error. Exiting.", QMessageBox.Ok)
+                    exit_program()
+
     # if the section is of notifcation settings then try and get requested key and return it
     else:
         try:
@@ -561,6 +591,11 @@ def write_settings(section, key, value):
         elif not confirm: # cancel addition if user aborts
             messagebox.showinfo("Database not added.", "The database was not added. Try adding again using a different name.")
             return
+    if section == "Databases":
+        for name, location in config[section].items():
+            if location == value:
+                messagebox.showinfo("Database not added.", f"This database already exists under the name \"{name}\"")
+                return
     else: # if the setting is anything else then write it (this will overwrite settings in the notification section automatically)
         config.set(section, key, value)
         with open (SETTINGS, "w+") as configfile:
@@ -599,7 +634,7 @@ def additional_databases_prompt():
 
         if file_path:
             # Prompt the user to enter a custom name for the database
-            custom_name, _ = QInputDialog.getText(None, "Custom Name", "Enter a custom name for the database (optional):\n\n e.g 'PCR Lab Reagents'")
+            custom_name = simpledialog.askstring("Custom Name", "Enter a custom name for the database (optional):\n\n e.g 'PCR Lab Reagents'")
             if not custom_name:
                 custom_name = os.path.basename(file_path)  # Use the database file name as the custom name
                 
@@ -633,10 +668,7 @@ def resume_notifications():
     pause_notifications_action.setText("Pause Notifications for 24 Hours")
     pause_notifications_action.triggered.connect(pause_notifications_24h)
 
-def trigger_database_scan():
-    # Load database paths from settings
-    database_settings = load_settings("Databases", ".") # placeholder used for key value as not needed to call databases from settings
-    
+def trigger_database_scan(database_settings):
     # Initialize the database scanner for each database
     for db_name, db_path in database_settings.items():
         db_path = str(db_path)  # Ensure db_path is a string
@@ -676,7 +708,7 @@ def trigger_database_scan():
 def start_timer(interval):
     global timer
     # Call perform_database_scan function immediately
-    trigger_database_scan()
+    trigger_database_scan(load_settings("Databases", None))
     # Schedule the perform_database_scan function to run periodically at the specified interval
     timer = threading.Timer(interval, start_timer, args=[interval])
     timer.start()
@@ -690,11 +722,11 @@ def splash(screen_width, screen_height, x, y):
     splash = ctk.CTk()
     splash.attributes('-transparentcolor', 'gray')
     splash.wm_attributes("-topmost", True)
-    splash_width = int(round(screen_width / 3.84))
-    splash_height = splash_width
-    splash.geometry(f"{splash_width}x{splash_height}")
+    pic = Image.open(app_logo)
+    splash_width = int(round(pic.width / 2)) 
+    splash_height = int(round(pic.height / 2)) 
     splash.overrideredirect(True)
-    logo = ctk.CTkImage(light_image=Image.open(app_logo), dark_image=Image.open(app_logo), size=(int(round(screen_width / 2.56)),int(round(screen_height / 2.16))))
+    logo = ctk.CTkImage(light_image=pic, dark_image=pic, size=(splash_width, splash_height)) 
     image = ctk.CTkLabel(splash, text="", image=logo, bg_color="gray")
     image.pack(padx=0, pady=0)
 
@@ -704,7 +736,7 @@ def splash(screen_width, screen_height, x, y):
     splash.geometry(f"{splash_width}x{splash_height}+{center_x}+{center_y}")  # Set geometry with position
 
     # destroy app splash after 5 seconds
-    splash.after(5000, splash.destroy)
+    splash.after(5000, splash.quit)
     splash.mainloop()
 
 def exit_program():
@@ -739,7 +771,7 @@ if __name__ == "__main__":
     # Create a context menu for the system tray icon
     tray_menu = QMenu()
     scan_action = QAction("Scan Databases Now...", parent=app)
-    scan_action.triggered.connect(trigger_database_scan)
+    scan_action.triggered.connect(lambda: trigger_database_scan(load_settings("Databases", None)))
     tray_menu.addAction(scan_action)
     database_editor = QAction("Database Editor", parent=app)
     database_editor.triggered.connect(show_editor_window)
